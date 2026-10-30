@@ -3,7 +3,6 @@
 #include <regex>
 #ifdef _WIN32
 #include <windows.h>
-#include <shobjidl.h>
 #endif
 
 namespace bettersearch {
@@ -83,37 +82,6 @@ json Engine::update_settings(const json &params) {
     return read_settings();
 }
 
-// Dialogs are opened only by explicit UI actions, on an initialized STA thread.
-static fs::path choose_path(bool save) {
-#ifdef _WIN32
-    auto initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    if (FAILED(initialized)) throw ServiceFailure("DIALOG_UNAVAILABLE");
-    IFileDialog *dialog = nullptr;
-    HRESULT result = save ? CoCreateInstance(CLSID_FileSaveDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog))
-                          : CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog));
-    fs::path path;
-    if (SUCCEEDED(result)) {
-        DWORD flags = 0; dialog->GetOptions(&flags);
-        dialog->SetOptions(flags | FOS_FORCEFILESYSTEM | (save ? FOS_OVERWRITEPROMPT : FOS_PICKFOLDERS | FOS_PATHMUSTEXIST));
-        if (save) {dialog->SetFileName(L"better-search-diagnostics.json"); dialog->SetDefaultExtension(L"json");}
-        result = dialog->Show(GetForegroundWindow());
-        if (SUCCEEDED(result)) {
-            IShellItem *item = nullptr;
-            if (SUCCEEDED(dialog->GetResult(&item))) {
-                PWSTR value = nullptr;
-                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &value))) {path = value; CoTaskMemFree(value);}
-                item->Release();
-            }
-        }
-        dialog->Release();
-    }
-    CoUninitialize();
-    if (FAILED(result) && result != HRESULT_FROM_WIN32(ERROR_CANCELLED)) throw ServiceFailure("DIALOG_UNAVAILABLE");
-    return path;
-#else
-    throw ServiceFailure("DIALOG_UNAVAILABLE");
-#endif
-}
 json Engine::diagnostics() {
     std::lock_guard lock(mutex);
     auto s = status();
@@ -121,6 +89,8 @@ json Engine::diagnostics() {
     json report = {{"version", BETTER_SEARCH_VERSION}, {"backend", "cpu-only"}, {"source_count", config["sources"].size()},
                    {"profile", preferences["profile"]}, {"automatic_updates", automatic_updates.load()}, {"paused", paused.load()}};
     for (auto name : {"threads", "projects", "chunks", "embedded", "model_ready", "database_bytes", "indexing", "embedding"}) report[name] = s[name];
+    report["query_backend"] = s["query_backend"];
+    report["index_backend"] = s["performance"].value("backend", "not-started");
     report["phase"] = s["progress"]["phase"];
     report["has_error"] = !s["progress"]["error"].is_null();
     report["created_at"] = now();
@@ -131,14 +101,14 @@ json Engine::settings_action(const json &params) {
     if (action == "diagnostics") return diagnostics();
     if (action == "export_diagnostics") {
         auto report = diagnostics();
-        auto file = choose_path(true);
+        auto file = choose_path(true, stopping);
         if (file.empty()) return {{"cancelled", true}};
         write_file(file, report.dump(2));
         return {{"saved", true}};
     }
     fs::path selected;
     if (action == "add_source") {
-        selected = choose_path(false);
+        selected = choose_path(false, stopping);
         if (selected.empty()) return {{"cancelled", true}};
     }
     // Wait for in-flight retrieval before replacing active index contents.
@@ -202,27 +172,7 @@ json Engine::settings_action(const json &params) {
         model_thread = std::thread([this] {
             bool ok = false;
             try {
-#ifdef _WIN32
-                wchar_t executable[32768]; GetModuleFileNameW(nullptr, executable, 32768);
-                auto root = fs::path(executable).parent_path().parent_path().parent_path();
-                auto node = root / "dist/runtime/node.exe", script = root / "scripts/setup-model.mjs";
-                // CreateProcess receives fixed executables and a quoted data directory, never a shell command.
-                auto quote = [](const fs::path &path) {
-                    auto text = path.wstring();
-                    size_t trailing = 0;
-                    while (trailing < text.size() && text[text.size() - trailing - 1] == L'\\') ++trailing;
-                    return L"\"" + text + std::wstring(trailing, L'\\') + L"\"";
-                };
-                auto command = quote(node) + L" " + quote(script) + L" --home " + quote(home);
-                STARTUPINFOW startup{}; startup.cb = sizeof(startup); PROCESS_INFORMATION process{};
-                if (CreateProcessW(node.c_str(), command.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, root.c_str(), &startup, &process)) {
-                    CloseHandle(process.hThread);
-                    while (WaitForSingleObject(process.hProcess, 200) == WAIT_TIMEOUT) {
-                        if (stopping) {TerminateProcess(process.hProcess, 1); break;}
-                    }
-                    DWORD code = 1; GetExitCodeProcess(process.hProcess, &code); CloseHandle(process.hProcess); ok = code == 0;
-                }
-#endif
+                ok = run_model_helper(home, stopping);
                 if (ok) {
                     auto model = json::parse(read_file(home / "model-setup.json"));
                     std::scoped_lock inference_lock(inference_mutex, query_inference_mutex);
@@ -250,9 +200,10 @@ json Engine::settings_action(const json &params) {
         db.backup(home / "backups" / ("search-" + action + "-" + hash(now()).substr(0, 16) + ".sqlite"));
         db.exec("BEGIN IMMEDIATE");
         try {
-            db.exec("DELETE FROM chunk_vectors; DELETE FROM chunks; DELETE FROM threads; DELETE FROM projects; UPDATE sources SET last_sync=NULL,warnings=NULL; UPDATE settings SET value=CAST(value AS INTEGER)+1 WHERE key='corpus_revision'; COMMIT");
+            db.exec("DELETE FROM chunk_vectors; DELETE FROM chunks; DELETE FROM threads; DELETE FROM projects; UPDATE sources SET last_sync=NULL,warnings=NULL; UPDATE settings SET value=CAST(value AS INTEGER)+1 WHERE key='corpus_revision'; UPDATE settings SET value='0' WHERE key='initial_embedding_complete'; COMMIT");
         } catch (...) {db.exec("ROLLBACK"); throw;}
         {std::lock_guard cache_lock(cache_mutex); result_cache.clear(); search_snapshots.clear();}
+        initial_embedding = true;
         progress = {{"phase", "idle"}, {"done", 0}, {"total", 0}, {"error", nullptr}};
         embedding_error.clear();
         index_pending = false;

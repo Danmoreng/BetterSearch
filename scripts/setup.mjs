@@ -5,17 +5,12 @@ import { Readable } from "node:stream";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
+import {dataDirectory} from "./platform.mjs";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const vendor = path.join(root, ".runtime/vendor");
-const home =
-  process.env.BETTER_SEARCH_HOME ||
-  path.join(
-    process.env.LOCALAPPDATA ||
-      path.join(process.env.HOME || "", ".local/share"),
-    "BetterSearch",
-  );
+const home = dataDirectory();
 await mkdir(vendor, { recursive: true });
 await mkdir(home, { recursive: true });
 const lock = {};
@@ -108,10 +103,12 @@ await download(
   path.join(vendor, "json.hpp"),
   "aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63",
 );
-const {ensureModel}=await import('./model.mjs');
-await ensureModel();
+if (process.argv.includes('--model')) {
+  const {ensureModel}=await import('./model.mjs');
+  await ensureModel();
+}
 await writeFile(
   path.join(root, ".runtime/downloads.json"),
   JSON.stringify(lock, null, 2),
 );
-console.log(`Native dependencies and local model ready. Data: ${home}`);
+console.log(`Native dependencies ready. Data: ${home}`);

@@ -1,6 +1,6 @@
 {
   "name": "better-search",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Fast, private search across your local Codex chats.",
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",

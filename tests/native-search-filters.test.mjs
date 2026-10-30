@@ -1,3 +1,4 @@
+import {nativeBinary} from './helpers/platform.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -37,7 +38,7 @@ test('quoted search phrases and calendar filters constrain chats before ranking'
   await writeFile(path.join(home, 'config.json'), JSON.stringify({model: 'google/embeddinggemma-2', model_file: 'missing-test-model.gguf', dimensions: 768,
     model_sha256: '68bae29d62fb8c7d23e98d21fd4662753ddd636e6b62b8a70dfe059a9844f216',
     sources: [{id: 'fixture', kind: 'local', label: 'Fixture', codex_home: source}]}));
-  const exe = path.resolve('dist/native/better-search.exe');
+  const exe = nativeBinary;
   execFileSync(exe, ['--data', home, '--index-only'], {encoding: 'utf8'});
   const token = randomBytes(32).toString('hex'), tokenFile = path.join(home, 'access-token');
   await writeFile(tokenFile, token);

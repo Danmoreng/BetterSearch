@@ -106,11 +106,7 @@ int main(int argc, char **argv) {
             std::cout << "native self-test passed\n";
             return 0;
         }
-        auto base = std::getenv("LOCALAPPDATA");
-        if (!base)
-            base = std::getenv("HOME");
-        fs::path home = args.contains("--data") ? fs::u8path(args["--data"])
-                                                : fs::u8path(base ? base : ".") / "BetterSearch";
+        fs::path home = args.contains("--data") ? fs::u8path(args["--data"]) : default_data_home();
         Engine engine(home);
         engine.init();
         if (args.contains("--benchmark-query")) {
@@ -144,6 +140,7 @@ int main(int argc, char **argv) {
                 }
                 report["samples"].push_back(sample);
             }
+            report["performance"] = engine.performance;
             std::cout << report.dump() << '\n'; return 0;
         }
         if (args.contains("--benchmark")) {
@@ -255,7 +252,7 @@ int main(int argc, char **argv) {
                     res.set_content("{\"result\":{\"stopping\":true}}", "application/json");
                     engine.stopping = true; server.stop(); return;
                 }
-                auto result = engine.dispatch(p.at("method").get<std::string>(),
+                auto result = engine.dispatch(p.at("method").template get<std::string>(),
                                               p.value("params", json::object()));
                 res.set_content(json({{"result", result}}).dump(), "application/json");
             } catch (const ServiceFailure &e) {

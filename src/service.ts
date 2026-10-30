@@ -4,10 +4,10 @@ import {randomBytes} from 'node:crypto';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {setTimeout as delay} from 'node:timers/promises';
+import {dataDirectory, platformConfig} from '../scripts/platform.mjs';
 import pkg from '../package.json' with {type: 'json'};
 export const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const localData = process.env.LOCALAPPDATA || path.join(process.env.HOME || '', '.local/share');
-export const dataHome = process.env.BETTER_SEARCH_HOME || path.join(localData, 'BetterSearch');
+export const dataHome = dataDirectory();
 export const port = Number(process.env.BETTER_SEARCH_PORT || 39471);
 export const baseUrl = `http://127.0.0.1:${port}`;
 const tokenFile = path.join(dataHome, 'access-token');
@@ -54,7 +54,8 @@ async function startService(signal?: AbortSignal) {
   if (!ownsLock) throw new ServiceError('START_BUSY', 'Another BetterSearch client is still starting the local service.');
   try {
     if (await healthy(signal)) return;
-    const candidates = [path.join(root, 'dist/native/better-search.exe'), path.join(root, 'build/cpu/Release/better-search.exe')];
+    const target = platformConfig();
+    const candidates = [path.join(root, 'dist/native', target.nativeName), path.join(root, target.nativeBuild)];
     const exe = (await Promise.all(candidates.map(async p => await exists(p) ? p : null))).find(Boolean);
     if (!exe) throw new ServiceError('BINARY_MISSING', 'Native binary missing. Install a complete BetterSearch release, or run npm run setup && npm run build:native && npm run build.');
     const log = await open(path.join(dataHome, 'service.log'), 'a');

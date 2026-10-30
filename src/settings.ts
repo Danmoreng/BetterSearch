@@ -133,6 +133,7 @@ export class Settings {
     $('model-busy-help').hidden = !running;
     for (const id of ['refresh-index', 'repair-index']) $<HTMLButtonElement>(id).disabled = Boolean(prefs.paused || running || model.busy);
     for (const id of ['rebuild-index', 'clear-index', 'add-source']) $<HTMLButtonElement>(id).disabled = Boolean(running || model.busy);
+    $('diagnostic-backend').textContent = t(status.embedding && status.performance?.backend === 'gpu' ? 'settings.cpuSearchGpuIndex' : 'settings.cpu');
     $('diagnostic-version').textContent = status.version;
     $('diagnostic-storage').textContent = t('settings.storageSize', {size: mb(status.database_bytes || 0)});
   }

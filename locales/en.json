@@ -115,7 +115,7 @@
   "settings.storage": "Search index storage",
   "settings.storageSize": "{size} MB",
   "settings.backend": "Inference",
-  "settings.cpu": "Local CPU",
+  "settings.cpu": "Local CPU search",
   "settings.saved": "Saved",
   "settings.saving": "Saving…",
   "settings.working": "Working…",
@@ -126,7 +126,7 @@
   "settings.invalidSource": "Choose a folder containing a supported local Codex profile.",
   "settings.sourceExists": "This Codex profile is already in your sources.",
   "settings.invalidLabel": "Enter a source name between 1 and 100 characters.",
-  "settings.dialogFailed": "The Windows file dialog could not be opened. Try again.",
+  "settings.dialogFailed": "The system file dialog could not be opened. Check that a desktop session is available and try again.",
   "settings.retry": "Try again",
   "settings.attention": "Index needs attention",
   "settings.updated": "Last updated {date}",
@@ -161,5 +161,11 @@
   "search.clearProject": "Search all projects",
   "search.clearFilters": "Clear filters",
   "search.retry": "Try again",
-  "search.refresh": "Search again"
+  "search.refresh": "Search again",
+  "dialog.source": "Choose a Codex profile",
+  "dialog.export": "Export BetterSearch diagnostics",
+  "dialog.select": "Select",
+  "dialog.save": "Save",
+  "dialog.jsonFiles": "JSON files",
+  "settings.cpuSearchGpuIndex": "CPU search · GPU indexing"
 }

@@ -146,6 +146,28 @@ void Engine::index() {
             continue;
         }
         std::unique_ptr<Db> history;
+        if (!data.excluded_threads.empty()) {
+            std::lock_guard lock(mutex);
+            Db db(db_path());
+            json excluded = json::array();
+            for (const auto &id : data.excluded_threads) excluded.push_back(key(sid, id));
+            auto present = db.query("SELECT count(*) n FROM threads WHERE key IN (SELECT value FROM json_each(?))", {excluded.dump()})[0]["n"].get<int>();
+            if (present) {
+                // Explicit origin exclusions also apply when unrelated source scans warn.
+                // Preserve the prior search index before removing already-indexed reviews.
+                db.backup(home / "backups" / ("search-origin-exclusions-" + hash(now() + sid + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count())).substr(0, 16) + ".sqlite"));
+                db.exec("BEGIN IMMEDIATE");
+                try {
+                    db.run("DELETE FROM chunk_vectors WHERE chunk_id IN (SELECT id FROM chunks WHERE thread_key IN (SELECT value FROM json_each(?)))", {excluded.dump()});
+                    db.run("DELETE FROM threads WHERE key IN (SELECT value FROM json_each(?))", {excluded.dump()});
+                    db.run("DELETE FROM projects WHERE source_id=? AND NOT EXISTS(SELECT 1 FROM threads WHERE project_key=projects.key)", {sid});
+                    db.exec("UPDATE settings SET value=CAST(value AS INTEGER)+1 WHERE key='corpus_revision'");
+                    db.exec("COMMIT");
+                } catch (...) {db.exec("ROLLBACK"); throw;}
+                std::lock_guard cache_lock(cache_mutex);
+                search_snapshots.clear(); result_cache.clear();
+            }
+        }
         if (!data.history.empty())
             history = std::make_unique<Db>(data.history, true);
         int done = 0;
@@ -310,8 +332,13 @@ void Engine::embed() {
                         {"total", counts["total"]},
                         {"error", nullptr}};
         }
-        if (rows.empty())
+        if (rows.empty()) {
+            if (db.query("SELECT EXISTS(SELECT 1 FROM chunks WHERE embedded=1) ready")[0]["ready"] == 1) {
+                db.exec("UPDATE settings SET value='1' WHERE key='initial_embedding_complete'");
+                initial_embedding = false;
+            }
             break;
+        }
         {
             std::lock_guard profile_lock(performance_mutex);
             performance["read_ms"] = performance["read_ms"].get<double>() +

@@ -1,3 +1,4 @@
+import {nativeBinary} from './helpers/platform.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
@@ -7,7 +8,7 @@ import { spawn, execFileSync } from "node:child_process";
 import path from "node:path";
 import { existsSync } from "node:fs";
 import { zstdCompressSync } from "node:zlib";
-const exe = path.resolve("dist/native/better-search.exe");
+const exe = nativeBinary;
 const fingerprint =
   "68bae29d62fb8c7d23e98d21fd4662753ddd636e6b62b8a70dfe059a9844f216";
 import {testModelFile as modelFile} from './helpers/model.mjs';
@@ -286,6 +287,15 @@ test("project rename refreshes metadata without replacing chunks or vectors", ()
   assert.deepEqual(after.prepare("SELECT id,digest,embedded FROM chunks ORDER BY id").all(),before);
   assert.equal(after.prepare("SELECT name FROM projects WHERE key='test:p1'").get().name,"Search Renamed");after.close();
 });
+test('semantic queries retain their CPU model alongside document inference',{skip:!existsSync(modelFile)},async()=>{
+ const config=JSON.parse(await readFile(path.join(home,'config.json'),'utf8'));
+ config.model_file=modelFile;
+ await writeFile(path.join(home,'config.json'),JSON.stringify(config));
+ const report=JSON.parse(execFileSync(exe,['--data',home,'--benchmark-query','--compare-gpu'],{encoding:'utf8',timeout:180000}));
+ assert.equal(report.performance.query_backend,'cpu');
+ if(process.env.BETTER_SEARCH_TEST_REQUIRE_GPU==='1')assert.equal(report.performance.backend,'gpu');
+ for(const sample of report.samples)assert.ok(sample.cpu_gpu_cosine>0.99,JSON.stringify(sample));
+});
 test(
   "native llama.cpp embeds fixture chunks using the downloaded EmbeddingGemma 2 model",
   { skip: !existsSync(modelFile) },
@@ -303,13 +313,28 @@ test(
     );
     assert.equal(embedded.embedded, embedded.chunks);
     assert.ok(embedded.embedded > 0);
+    const policy=new DatabaseSync(path.join(home,"search.sqlite"));
+    assert.equal(policy.prepare("SELECT value FROM settings WHERE key='initial_embedding_complete'").get().value,"1");policy.close();
+    if(process.env.BETTER_SEARCH_TEST_REQUIRE_GPU==='1')assert.equal(embedded.performance.backend,'gpu');
   },
 );
+test('initial-build completion survives restart and legacy vectors remain compatible',{skip:!existsSync(modelFile)},()=>{
+ const before=JSON.parse(execFileSync(exe,['--index-check','--database',path.join(home,'search.sqlite')],{encoding:'utf8'}));
+ const db=new DatabaseSync(path.join(home,'search.sqlite'));
+ db.exec("UPDATE settings SET value='0' WHERE key='initial_embedding_complete'");
+ execFileSync(exe,['--data',home,'--status'],{stdio:'pipe'});
+ assert.equal(db.prepare("SELECT value FROM settings WHERE key='initial_embedding_complete'").get().value,'0','Partial first builds must remain eligible after restart');
+ db.exec("DELETE FROM settings WHERE key='initial_embedding_complete'");
+ execFileSync(exe,['--data',home,'--status'],{stdio:'pipe'});
+ assert.equal(db.prepare("SELECT value FROM settings WHERE key='initial_embedding_complete'").get().value,'1','Legacy populated indexes must use CPU for later updates');db.close();
+ assert.deepEqual(JSON.parse(execFileSync(exe,['--index-check','--database',path.join(home,'search.sqlite')],{encoding:'utf8'})),before);
+});
 test('parallel embedding preserves document order and matches serial inference',{skip:!existsSync(modelFile)},()=>{
   const report=JSON.parse(execFileSync(exe,['--data',home,'--benchmark','--count','8','--verify-serial'],{encoding:'utf8',timeout:180000,env:{...process.env,BETTER_SEARCH_EMBED_WORKERS:'2'}}));
   assert.ok(report.min_serial_cosine>=0.99999);
   assert.ok(report.performance.workers>=1 && report.performance.workers<=4);
   assert.equal(report.performance.batch_documents,4);
+  assert.equal(report.performance.backend,'cpu','Subsequent document inference must return to CPU');
 });
 test(
   "incremental import reuses vectors for unchanged text when a new message arrives",
@@ -345,6 +370,9 @@ test(
     );
     assert.equal(after.chunks, before.chunks + 2);
     assert.equal(after.embedded, before.embedded);
+    const updated=JSON.parse(execFileSync(exe,["--data",home,"--embed-only"],{encoding:"utf8",timeout:180000}));
+    assert.equal(updated.performance.backend,"cpu","Incremental embeddings must use CPU after a persisted completed first build");
+    assert.equal(updated.embedded,updated.chunks);
   },
 );
 test("local API enforces origin and authentication; keyword results respect source and archive filters", async () => {

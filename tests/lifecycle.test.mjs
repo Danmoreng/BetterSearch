@@ -5,6 +5,7 @@ import {createServer} from 'node:http';
 import {createInterface} from 'node:readline';
 import {access,mkdtemp,readFile,writeFile} from 'node:fs/promises';
 import path from 'node:path';
+import {mcpTransport} from '../scripts/platform.mjs';
 import pkg from '../package.json' with {type:'json'};
 const pluginRoot=path.resolve(process.env.BETTER_SEARCH_TEST_ROOT||'.');
 
@@ -20,9 +21,11 @@ test('adapter exits cleanly when the host disconnects during an active HTTP requ
   waiting.push(res);seen?.();
  });
  await new Promise(resolve=>fixture.listen(0,'127.0.0.1',resolve));
- const manifest=JSON.parse(await readFile(path.join(pluginRoot,'.mcp.json'),'utf8')).mcpServers['better-search'];
+ const manifest=process.env.BETTER_SEARCH_TEST_ROOT
+  ? JSON.parse(await readFile(path.join(pluginRoot,'.mcp.json'),'utf8')).mcpServers['better-search']
+  : mcpTransport();
  try{
-  // Use the packaged Windows command wrapper, including its child Node process.
+  // Exercise the platform transport, including the Windows command wrapper.
   for(const mode of ['stdin','both','stdout','both','stdin','stdout']){
    const child=spawn(manifest.command,manifest.args,{cwd:pluginRoot,windowsHide:true,
     env:{...process.env,BETTER_SEARCH_HOME:home,BETTER_SEARCH_PORT:String(fixture.address().port)},
@@ -71,7 +74,9 @@ test('disconnect during service startup releases the owned lock without spawning
   blocked(); // The second health check runs after this adapter acquired the lock.
  });
  await new Promise(resolve=>fixture.listen(0,'127.0.0.1',resolve));
- const manifest=JSON.parse(await readFile(path.join(pluginRoot,'.mcp.json'),'utf8')).mcpServers['better-search'];
+ const manifest=process.env.BETTER_SEARCH_TEST_ROOT
+  ? JSON.parse(await readFile(path.join(pluginRoot,'.mcp.json'),'utf8')).mcpServers['better-search']
+  : mcpTransport();
  const child=spawn(manifest.command,manifest.args,{cwd:pluginRoot,windowsHide:true,
   env:{...process.env,BETTER_SEARCH_HOME:home,BETTER_SEARCH_PORT:String(fixture.address().port)},
   stdio:['pipe','pipe','pipe']});

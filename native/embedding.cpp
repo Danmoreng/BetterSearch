@@ -230,13 +230,17 @@ std::vector<std::vector<float>> Engine::encode(const std::vector<std::string> &t
         auto &selected = query ? query_inference : index_inference;
         if (!selected) {
             auto model_path = fs::u8path(str(model_config, "model_file"));
-            try { selected = std::make_shared<Inference>(model_path, query); }
+            try { selected = std::make_shared<Inference>(model_path, query, !initial_embedding.load()); }
             catch (...) {
                 if (query) throw;
                 selected = std::make_shared<Inference>(model_path, false, true);
             }
         }
         runtime = selected;
+    }
+    if (query) {
+        std::lock_guard lock(performance_mutex);
+        performance["query_backend"] = runtime->accelerated ? "gpu" : "cpu";
     }
     if (!query) {
         std::lock_guard lock(performance_mutex);

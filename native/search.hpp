@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <set>
 #include <optional>
 #include <string>
 #include <stdexcept>
@@ -39,6 +40,9 @@ std::string read_file(const fs::path &);
 void write_file(const fs::path &, const std::string &);
 std::string hash(const std::string &);
 std::string now();
+fs::path default_data_home();
+fs::path choose_path(bool save, const std::atomic<bool> &stopping);
+bool run_model_helper(const fs::path &home, const std::atomic<bool> &stopping);
 std::string clean_text(std::string);
 std::vector<std::pair<size_t, std::string>> split_text(const std::string &, size_t size = 2400,
                                                        size_t overlap = 180);
@@ -63,6 +67,7 @@ class Db {
 };
 struct SourceData {
     std::map<std::string, json> threads, projects;
+    std::set<std::string> excluded_threads;
     std::vector<std::string> warnings;
     fs::path history;
 };
@@ -93,6 +98,7 @@ class Engine {
                         {"write_ms", 0.0}, {"batches", 0},       {"documents", 0},
                         {"tokens", 0}};
     std::shared_ptr<Inference> index_inference, query_inference;
+    std::atomic<bool> initial_embedding = true;
     std::array<std::unique_ptr<Db>, 3> readers;
     std::array<bool, 3> reader_busy{};
     std::mutex reader_mutex, session_mutex, cache_mutex;

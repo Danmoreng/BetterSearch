@@ -32,7 +32,7 @@ Model weights are stored separately in the central Hugging Face cache, normally
 BetterSearch data directory keeps that shared model cache. Remove weights through
 your Hugging Face cache-management tools when no other application needs them.
 
-The plugin ZIP contains software and notices only. It excludes the database,
+The plugin archive contains software and notices only. It excludes the database,
 chat exports, tokens, model weights, service logs and private configuration.
 
 The Settings GUI can disable agent retrieval independently of panel search.

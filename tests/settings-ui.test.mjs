@@ -119,3 +119,13 @@ test('settings distinguish an empty index from a searchable index',async t=>{
  f.state.status.threads=12;await f.settings.load();
  assert.equal(f.document.getElementById('index-phase').textContent,english['settings.ready']);
 });
+
+test('GPU indexing never labels search as GPU inference',async t=>{
+ const f=fixture(t);
+ f.state.status.embedding=true;f.state.status.performance={backend:'gpu'};
+ await f.settings.load();
+ assert.equal(f.document.getElementById('diagnostic-backend').textContent,english['settings.cpuSearchGpuIndex']);
+ f.state.status.embedding=false;
+ await f.settings.load();
+ assert.equal(f.document.getElementById('diagnostic-backend').textContent,english['settings.cpu']);
+});

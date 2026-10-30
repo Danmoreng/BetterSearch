@@ -1,5 +1,6 @@
+import {constants} from 'node:fs';
 // Exercise the actual extracted runtime with synthetic data and an isolated profile.
-import {readFile,mkdtemp,mkdir,writeFile,readdir} from 'node:fs/promises';
+import {readFile,mkdtemp,mkdir,writeFile,readdir,access} from 'node:fs/promises';
 import {DatabaseSync} from 'node:sqlite';
 import {execFileSync,spawn} from 'node:child_process';
 import {createInterface} from 'node:readline';
@@ -9,8 +10,11 @@ import assert from 'node:assert/strict';
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {StdioClientTransport} from '@modelcontextprotocol/sdk/client/stdio.js';
 import {fileHash} from './model-cache.mjs';
-import {nodeVersion} from './runtime.mjs';
-const release=JSON.parse(await readFile('artifacts/release.json','utf8'));
+import {nodeVersion,runtimeSpecs} from './runtime.mjs';
+import {platformConfig} from './platform.mjs';
+const target=platformConfig();
+const release=JSON.parse(await readFile(`artifacts/release-${target.target}.json`,'utf8'));
+assert.equal(release.target,target.target,'Verify the release on its target platform');
 assert.equal(await fileHash(release.archive),release.sha256,'Release archive checksum must match');
 const scratch=await mkdtemp(path.resolve('.runtime/release-check-'));
 const unpack=path.join(scratch,'extracted package');await mkdir(unpack,{recursive:true});
@@ -25,20 +29,27 @@ history.exec('CREATE TABLE thread_items(thread_id TEXT,turn_id TEXT,item_id TEXT
 for(const [id,text] of [['a','Use OAuth PKCE for secure authentication.'],['b','Back up SQLite before a migration.'],['c','Create local embeddings in the background.']])history.prepare('INSERT INTO thread_items VALUES(?,?,?,?,?,?,?,?)').run(id,'turn','item-'+id,0,1,'userMessage',JSON.stringify({type:'userMessage',content:[{type:'text',text}]}),1);history.close();
 await writeFile(path.join(home,'config.json'),JSON.stringify({model:'google/embeddinggemma-2',model_file:'missing-for-keyword-test.gguf',model_sha256:'68bae29d62fb8c7d23e98d21fd4662753ddd636e6b62b8a70dfe059a9844f216',dimensions:768,sources:[{id:'release',label:'Synthetic release fixture',kind:'local',codex_home:source}]}));
 const socket=createServer();await new Promise(resolve=>socket.listen(0,'127.0.0.1',resolve));const port=socket.address().port;await new Promise(resolve=>socket.close(resolve));
-const env={...process.env,BETTER_SEARCH_HOME:home,BETTER_SEARCH_PORT:String(port),BETTER_SEARCH_NO_WATCH:'1',PATH:process.env.SystemRoot+'\\System32'};
+const env={...process.env,BETTER_SEARCH_HOME:home,BETTER_SEARCH_PORT:String(port),BETTER_SEARCH_NO_WATCH:'1',PATH:target.windows?process.env.SystemRoot+'\\System32':'/usr/bin:/bin'};
 // Exercise Codex's own package/path resolver, rather than substituting paths in the test.
+const ciHost=process.env.CI==='true'&&process.env.BETTER_SEARCH_CI_HOST==='1';
 let desktopCodex;
-if(process.platform==='win32'){
+if(!ciHost&&process.platform==='win32'){
  const hosts=execFileSync('powershell.exe',['-NoProfile','-Command',
   "Get-CimInstance Win32_Process | Where-Object { $_.Name -eq 'codex.exe' -and $_.CommandLine -match '\\bapp-server\\b' } | Select-Object -ExpandProperty ExecutablePath -Unique"],{encoding:'utf8'}).trim().split(/\r?\n/).filter(Boolean);
  if(hosts.length===1)desktopCodex=hosts[0];
 }
+if(!ciHost&&!target.windows){
+ for(const candidate of ['/usr/lib/chatgpt/resources/codex','/opt/ChatGPT/resources/codex']){
+  try{await access(candidate,constants.X_OK);desktopCodex=candidate;break;}catch(error){if(error.code!=='ENOENT')throw error;}
+ }
+}
 const codex=process.env.BETTER_SEARCH_CODEX_CLI||desktopCodex||process.env.CODEX_CLI_PATH;
-if(!codex)throw Error('Set BETTER_SEARCH_CODEX_CLI to the desktop-bundled codex.exe for host-resolution verification.');
-if(desktopCodex)assert.equal(path.resolve(codex).toLowerCase(),path.resolve(desktopCodex).toLowerCase(),
+if(!codex)throw Error('Set BETTER_SEARCH_CODEX_CLI to the desktop-bundled Codex executable for host-resolution verification.');
+const normalizeExecutable=value=>target.windows?path.resolve(value).toLowerCase():path.resolve(value);
+if(desktopCodex)assert.equal(normalizeExecutable(codex),normalizeExecutable(desktopCodex),
  'Release verification must use the CLI bundled with the running desktop app, not a separate CLI');
 const codexVersion=execFileSync(codex,['--version'],{encoding:'utf8'}).trim();
-console.log(`Verifying desktop host: ${codexVersion}`);
+console.log(`Verifying ${ciHost?'pinned CI protocol host':'desktop host'}: ${codexVersion}`);
 const hostProfile=path.join(scratch,'host profile');
 await mkdir(hostProfile);
 const catalog=JSON.parse(await readFile(path.join(unpack,'.agents/plugins/marketplace.json'),'utf8'));
@@ -83,7 +94,12 @@ try{
  const closed=new Promise(resolve=>host.once('close',resolve));host.stdin.end();
  const killTimeout=setTimeout(()=>host.kill(),3000);await closed;clearTimeout(killTimeout);
 }
-const runtime=path.join(unpack,'dist/runtime/node.exe');
+const runtime=path.join(unpack,'dist/runtime',target.nodeName);
+assert.equal(await fileHash(runtime),runtimeSpecs[target.target].sha256);
+if(!target.windows){
+ for(const name of [target.nativeName,'better-search-dialog'])await access(path.join(unpack,'dist/native',name),constants.X_OK);
+ for(const name of ['setup','start','stop','status'])await access(path.join(unpack,`${name}.sh`),constants.X_OK);
+}
 assert.equal(execFileSync(runtime,['--version'],{env,encoding:'utf8'}).trim(),nodeVersion);
 execFileSync(runtime,['--test',path.resolve('tests/lifecycle.test.mjs')],{
  env:{...process.env,BETTER_SEARCH_TEST_ROOT:resolved.cwd},encoding:'utf8',timeout:35000,
@@ -93,6 +109,10 @@ execFileSync(runtime,['--test',path.resolve('tests/settings.test.mjs')],{
  env:{...process.env,BETTER_SEARCH_TEST_ROOT:resolved.cwd},encoding:'utf8',timeout:35000,
 });
 console.log('Extracted settings verified: persistence, source exclusion, agent isolation, model reuse and backed-up maintenance.');
+execFileSync(runtime,['--test',path.resolve('tests/embedding-policy.test.mjs')],{
+ env:{...process.env,BETTER_SEARCH_TEST_ROOT:resolved.cwd},encoding:'utf8',timeout:180000,
+});
+console.log('Extracted embedding policy checked (real-model coverage requires local verified weights).');
 const client=new Client({name:'release-verification',version:'1.0.0'});
 const tool=async(name,args={})=>{const result=await client.callTool({name,arguments:args});assert.ok(!result.isError,JSON.stringify(result));return result.structuredContent;};
 try{
@@ -122,12 +142,12 @@ try{
  assert.equal(filtered.results.length,1,'Extracted package must enforce phrase/date filters through MCP');
  assert.deepEqual((await tool('search_panel',{query:'"OAuth" "SQLite"',mode:'keyword'})).results,[]);
  assert.deepEqual((await tool('search_panel',{query:'OAuth',mode:'keyword',updated_after:'2026-01-01'})).results,[]);
- const before=JSON.parse(execFileSync(path.join(unpack,'dist/native/better-search.exe'),['--index-check','--database',path.join(home,'search.sqlite')],{env,encoding:'utf8'}));
+ const before=JSON.parse(execFileSync(path.join(unpack,'dist/native',target.nativeName),['--index-check','--database',path.join(home,'search.sqlite')],{env,encoding:'utf8'}));
  execFileSync(runtime,[path.join(unpack,'scripts/stop.mjs')],{env,encoding:'utf8'});
  for(let i=0;i<100;i++){try{await fetch(`http://127.0.0.1:${port}/health`);await new Promise(resolve=>setTimeout(resolve,50));}catch{break;}}
  assert.equal((await tool('search_status')).threads,3);
  assert.equal((await tool('read_settings')).preferences.density,'compact');
- const after=JSON.parse(execFileSync(path.join(unpack,'dist/native/better-search.exe'),['--index-check','--database',path.join(home,'search.sqlite')],{env,encoding:'utf8'}));assert.deepEqual(after,before);
+ const after=JSON.parse(execFileSync(path.join(unpack,'dist/native',target.nativeName),['--index-check','--database',path.join(home,'search.sqlite')],{env,encoding:'utf8'}));assert.deepEqual(after,before);
  const db=new DatabaseSync(path.join(home,'search.sqlite'),{readOnly:true});assert.equal(db.prepare('PRAGMA user_version').get().user_version,1);db.close();
  await writeFile(path.join(scratch,'verification.json'),JSON.stringify({version:release.version,codex,codexVersion,syntheticChats:3,isolatedRuntime:true,hostResolvedTransport:true,desktopCatalogVerified:true,conversationPanelRegistered:true,restartPreservedIndex:true},null,2));
  console.log('Extracted release verified: bundled runtime, service startup, empty query, source import, headless evidence and restart without index changes.');

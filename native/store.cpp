@@ -352,9 +352,13 @@ CREATE VIRTUAL TABLE IF NOT EXISTS chunk_vectors USING vec0(chunk_id INTEGER PRI
 )SQL");
     db.exec("CREATE TABLE IF NOT EXISTS source_identities(source_id TEXT PRIMARY KEY,origin_id TEXT NOT NULL UNIQUE)");
     db.exec("INSERT OR IGNORE INTO settings VALUES('corpus_revision','0')");
+    // Existing indexes with vectors have already completed their original build.
+    // Persist new/paused first builds separately from later incremental updates.
+    db.exec("INSERT OR IGNORE INTO settings SELECT 'initial_embedding_complete', CASE WHEN EXISTS(SELECT 1 FROM chunk_vectors LIMIT 1) THEN '1' ELSE '0' END");
     db.exec("PRAGMA user_version=1");
     db.exec("COMMIT");
     } catch (...) { db.exec("ROLLBACK"); throw; }
+    initial_embedding = db.query("SELECT value FROM settings WHERE key='initial_embedding_complete'")[0]["value"] == "0";
     auto fingerprint = config.at("model_sha256").get<std::string>() + ":768:search-prefix-v1:title512-v1";
     auto prev = db.query("SELECT value FROM settings WHERE key='embedding_fingerprint'");
     if (!prev.empty() && prev[0]["value"] != fingerprint)

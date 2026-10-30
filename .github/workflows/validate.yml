@@ -1,0 +1,75 @@
+name: Build, verify and release Windows and Linux
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    env:
+      HF_HUB_CACHE: ${{ runner.temp }}/better-search-model-cache
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '26.13.0'
+          cache: npm
+      - name: Install Linux build and native dialog dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build pkg-config libgtk-3-dev
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        run: node -e "const p=require('./package.json');if(process.env.GITHUB_REF_NAME!=='v'+p.version)throw Error('Tag does not match package version')"
+      - run: npm ci
+      - run: npm run setup -- --model
+      - run: npm run build:native
+      - run: npm run build
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run package
+      - name: Install pinned protocol host for CI package verification
+        run: npm install --prefix .runtime/ci-codex --no-save --ignore-scripts @openai/codex@0.166.0-alpha.5.1
+      - name: Verify extracted package
+        run: node scripts/verify-ci-release.mjs
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: better-search-${{ runner.os }}-x64
+          path: |
+            artifacts/*.zip
+            artifacts/*.tar.gz
+            artifacts/*.sha256
+          if-no-files-found: error
+
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: validate
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          pattern: better-search-*-x64
+          merge-multiple: true
+          path: release-assets
+      - name: Publish verified Windows and Linux CPU packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test -f "release-assets/better-search-${GITHUB_REF_NAME#v}-windows-x64.zip"
+          test -f "release-assets/better-search-${GITHUB_REF_NAME#v}-linux-x64.tar.gz"
+          (cd release-assets && sha256sum -c *.sha256)
+          awk '/^## / { if (capture) exit; if ($2 == substr(ENVIRON["GITHUB_REF_NAME"], 2)) { capture=1; next } } capture { print }' CHANGELOG.md > release-notes.txt
+          gh release create "$GITHUB_REF_NAME" release-assets/* --verify-tag --title "BetterSearch ${GITHUB_REF_NAME#v} - Windows and Linux x64" --notes-file release-notes.txt

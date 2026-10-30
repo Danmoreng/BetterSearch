@@ -1,3 +1,4 @@
+import {nativeBinary} from './helpers/platform.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -8,7 +9,7 @@ import {once} from 'node:events';
 import path from 'node:path';
 
 const root = process.env.BETTER_SEARCH_TEST_ROOT || process.cwd();
-const exe = path.join(root, 'dist/native/better-search.exe');
+const exe = nativeBinary;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 test('native background schedule respects fifteen minutes, busy jobs and queued manual work', () => {

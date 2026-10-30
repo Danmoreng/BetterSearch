@@ -1,11 +1,12 @@
 import {mkdir,readFile,writeFile,rename,unlink} from 'node:fs/promises';
 import path from 'node:path';
+import {dataDirectory} from './platform.mjs';
 import {cachedModel} from './model-cache.mjs';
 export const modelName='embeddinggemma-2-BF16.gguf';
 export const modelHash='68bae29d62fb8c7d23e98d21fd4662753ddd636e6b62b8a70dfe059a9844f216';
 export const modelRevision='58faf90940886df2d62be555c8765d00dac362c5';
 export const modelRepository='ggml-org/embeddinggemma-2-GGUF';
-export const dataHome=process.env.BETTER_SEARCH_HOME||path.join(process.env.LOCALAPPDATA||path.join(process.env.HOME||'', '.local/share'),'BetterSearch');
+export const dataHome=dataDirectory();
 export async function ensureModel(home=dataHome){
   await mkdir(home,{recursive:true});
   const lock=path.join(home,'model-setup.lock');

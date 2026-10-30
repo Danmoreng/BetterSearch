@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.0
+
+- Exclude automatic Guardian review threads by origin, including previously indexed copies with a search-index backup.
+
+- Windows x64 and Linux x64 CPU packages built from the same source.
+- Pinned Linux Node runtime, platform-specific MCP startup and Linux tar.gz archives.
+- Native GTK folder/save dialogs, including XFCE under X11.
+- Linux model installation with cancellable, reaped helper processes.
+- Consistent Linux XDG data paths and Windows/Linux regression coverage.
+- Optional generic Windows/Linux CUDA development builds for first indexing/rebuilds, with CPU-only queries and incremental updates, plus local plugin staging.
+- Preserved portable Windows CPU defaults and opt-in Windows GPU development.
+
 ## 0.7.0
 
 - Local keyword and semantic search across Codex chats.

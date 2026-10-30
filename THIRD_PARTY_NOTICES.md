@@ -13,6 +13,9 @@ The TypeScript bridge and UI bundle dependencies listed in package-lock.json, in
 
 The locally downloaded model is Google's EmbeddingGemma 2 (Apache-2.0), converted to GGUF by ggml-org. Model weights are not included in the plugin package. The optional GPU development build uses CUDA components from the locally installed NVIDIA toolkit. The portable CPU package does not require CUDA or download a prebuilt llama.cpp runtime.
 
+The Linux dialog helper dynamically links the system GTK 3 library. GTK is
+provided and licensed by the Linux distribution; it is not bundled in the archive.
+
 ## MIT license
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -66,4 +69,4 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-The Windows release also bundles the exact Node.js runtime recorded in dist/build-info.json. Its full license and third-party notices are included as dist/runtime/NODE_LICENSE.txt. Additional native and npm license notices are included in licenses/.
+Each platform release bundles the exact Node.js runtime recorded in dist/build-info.json. Its full license and third-party notices are included as dist/runtime/NODE_LICENSE.txt. Additional native and npm license notices are included in licenses/.

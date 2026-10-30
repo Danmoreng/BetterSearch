@@ -16,7 +16,7 @@ an agent search the same index without opening the panel.
 - Run one shared local HTTP service behind local stdio MCP adapters.
 - Ship an English interface and English engineering documentation. Interface
   strings are externalized for future reviewed translations.
-- Distribute source and Windows x64 manual-install packages through GitHub.
+- Distribute source and separate Windows x64 / Linux x64 manual-install packages through GitHub.
 
 The product does not include project maps, relationships, logical project
 grouping, a global/fullscreen application, a standalone browser product, a chat
@@ -58,7 +58,10 @@ fullscreen entrypoint does not guarantee search and chat remain visible together
   unsupported index schemas are rejected without conversion.
 - Failed or unsupported source scans retain previously indexed content. A
   complete successful scan removes deleted chats from the separate search index.
-- The Windows CPU build does not require CUDA or machine-specific AVX settings.
+- CPU release builds on both platforms do not require CUDA or machine-specific AVX settings.
+- Linux uses the native GTK file picker; Windows retains its system COM dialogs.
+- Optional CUDA development builds accelerate document embeddings only. Queries
+  retain an independent CPU model; public packages remain portable CPU builds.
 - A manual-install release includes its Node runtime, native service, UI, notices
   and setup commands; no compiler or npm dependency installation is needed.
 - Model download is explicit, atomic, checksum-verified and reports progress.

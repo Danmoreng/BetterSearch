@@ -38,6 +38,73 @@
         "BETTER_SEARCH_BUILD_PROFILE": "windows-cpu",
         "GGML_OPENMP": "OFF"
       }
+    },
+    {
+      "name": "linux-cpu",
+      "displayName": "Portable Linux x64 CPU",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-cpu",
+      "cacheVariables": {
+        "GGML_CUDA": "OFF",
+        "GGML_NATIVE": "OFF",
+        "GGML_AVX": "OFF",
+        "GGML_AVX2": "OFF",
+        "GGML_AVX512": "OFF",
+        "GGML_FMA": "OFF",
+        "GGML_F16C": "OFF",
+        "GGML_BMI2": "OFF",
+        "GGML_SSE42": "OFF",
+        "BETTER_SEARCH_BUILD_PROFILE": "linux-cpu",
+        "GGML_OPENMP": "OFF",
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "windows-cuda",
+      "displayName": "Windows CUDA indexing (local hardware)",
+      "generator": "Visual Studio 17 2022",
+      "binaryDir": "${sourceDir}/build/cuda",
+      "cacheVariables": {
+        "GGML_CUDA": "ON",
+        "GGML_NATIVE": "OFF",
+        "GGML_AVX": "OFF",
+        "GGML_AVX2": "OFF",
+        "GGML_AVX512": "OFF",
+        "GGML_FMA": "OFF",
+        "GGML_F16C": "OFF",
+        "GGML_BMI2": "OFF",
+        "GGML_SSE42": "OFF",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
+        "BETTER_SEARCH_BUILD_PROFILE": "windows-cuda",
+        "GGML_OPENMP": "OFF",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "GGML_CUDA_FA_QUANTS": "f16-f16;bf16-bf16",
+        "GGML_CUDA_NCCL": "OFF"
+      },
+      "architecture": "x64"
+    },
+    {
+      "name": "linux-cuda",
+      "displayName": "Linux CUDA indexing (local hardware)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/linux-cuda",
+      "cacheVariables": {
+        "GGML_CUDA": "ON",
+        "GGML_NATIVE": "OFF",
+        "GGML_AVX": "OFF",
+        "GGML_AVX2": "OFF",
+        "GGML_AVX512": "OFF",
+        "GGML_FMA": "OFF",
+        "GGML_F16C": "OFF",
+        "GGML_BMI2": "OFF",
+        "GGML_SSE42": "OFF",
+        "BETTER_SEARCH_BUILD_PROFILE": "linux-cuda",
+        "GGML_OPENMP": "OFF",
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CUDA_ARCHITECTURES": "native",
+        "GGML_CUDA_FA_QUANTS": "f16-f16;bf16-bf16",
+        "GGML_CUDA_NCCL": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -52,6 +119,23 @@
       "configurePreset": "windows-cpu",
       "configuration": "Release",
       "jobs": 8
+    },
+    {
+      "name": "linux-cpu",
+      "configurePreset": "linux-cpu",
+      "jobs": 4
+    },
+    {
+      "name": "windows-cuda",
+      "configurePreset": "windows-cuda",
+      "configuration": "Release",
+      "jobs": 2
+    },
+    {
+      "name": "linux-cuda",
+      "configurePreset": "linux-cuda",
+      "configuration": "Release",
+      "jobs": 2
     }
   ]
 }

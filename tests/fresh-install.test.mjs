@@ -1,3 +1,4 @@
+import {nativeBinary} from './helpers/platform.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp, readFile, writeFile, mkdir} from 'node:fs/promises';
@@ -11,7 +12,7 @@ test('a fresh profile creates the current index and uses the central model cache
   const home = await mkdtemp(path.resolve('.runtime/fresh install '));
   const cache = path.join(home, 'shared hub');
   const env = {...process.env, HF_HUB_CACHE: cache};
-  const exe = path.resolve('dist/native/better-search.exe');
+  const exe = nativeBinary;
   execFileSync(exe, ['--data', home, '--status'], {env});
   const config = JSON.parse(await readFile(path.join(home, 'config.json'), 'utf8'));
   assert.equal(config.model_file, path.join(hubCache(env), `models--${modelRepository.replace('/', '--')}`,
@@ -19,6 +20,7 @@ test('a fresh profile creates the current index and uses the central model cache
   const db = new DatabaseSync(path.join(home, 'search.sqlite'), {readOnly: true});
   assert.equal(db.prepare('PRAGMA user_version').get().user_version, 1);
   assert.equal(db.prepare('SELECT count(*) n FROM chunks').get().n, 0);
+  assert.equal(db.prepare("SELECT value FROM settings WHERE key='initial_embedding_complete'").get().value,'0');
   db.close();
   const before = JSON.parse(execFileSync(exe, ['--index-check', '--database', path.join(home, 'search.sqlite')], {env}));
   execFileSync(exe, ['--data', home, '--status'], {env});
@@ -33,7 +35,7 @@ test('an unsupported index is rejected without converting it', async () => {
   const db = new DatabaseSync(path.join(home, 'search.sqlite'));
   db.exec('PRAGMA user_version=99; CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel VALUES(\'unchanged\')');
   db.close();
-  assert.throws(() => execFileSync(path.resolve('dist/native/better-search.exe'), ['--data', home, '--status'], {stdio:'pipe'}),
+  assert.throws(() => execFileSync(nativeBinary, ['--data', home, '--status'], {stdio:'pipe'}),
     error => error.stderr.toString().includes('Unsupported index schema'));
   const check = new DatabaseSync(path.join(home, 'search.sqlite'), {readOnly:true});
   assert.equal(check.prepare('PRAGMA user_version').get().user_version, 99);

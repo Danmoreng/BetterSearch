@@ -4,6 +4,14 @@
 #include <set>
 
 namespace bettersearch {
+static bool guardian_review(const json &meta) {
+    if (str(meta, "thread_source") == "guardian_review") return true;
+    auto source = meta.value("source", json());
+    if (source.is_string()) source = json::parse(source.get<std::string>(), nullptr, false);
+    if (!source.is_object()) return false;
+    auto subagent = source.find("subagent");
+    return subagent != source.end() && subagent->is_object() && str(*subagent, "other") == "guardian";
+}
 static std::string local_repository(const std::string &cwd) {
     try {
         auto folder = fs::u8path(cwd);
@@ -96,6 +104,7 @@ SourceData scan_source(const json &source) {
             }
             for (auto &t : db.query("SELECT * FROM threads")) {
                 auto id = str(t, "id");
+                if (guardian_review(t)) {out.excluded_threads.insert(id); continue;}
                 auto title = clean_text(str(t, "name"));
                 if (title.empty())
                     title = clean_text(str(t, "title"));
@@ -140,6 +149,8 @@ SourceData scan_source(const json &source) {
                     auto id = str(p, "id", str(p, "session_id"));
                     if (id.empty())
                         continue;
+                    if (guardian_review(p)) out.excluded_threads.insert(id);
+                    if (out.excluded_threads.contains(id)) continue;
                     if (!out.threads.contains(id)) {
                         auto title = titles.contains(id) ? titles[id] : "Untitled chat";
                         out.threads[id] = {
@@ -156,6 +167,7 @@ SourceData scan_source(const json &source) {
                 }
             }
         }
+    for (const auto &id : out.excluded_threads) out.threads.erase(id);
     out.history = newest(root, "thread_history_");
     if (out.history.empty())
         out.history = newest(root / "sqlite", "thread_history_");

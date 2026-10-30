@@ -1,3 +1,4 @@
+import {nativeBinary} from './helpers/platform.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
@@ -8,7 +9,7 @@ import {createServer} from 'node:net';
 import {once} from 'node:events';
 import path from 'node:path';
 const root = process.env.BETTER_SEARCH_TEST_ROOT || process.cwd();
-const exe = path.join(root, 'dist/native/better-search.exe');
+const exe = nativeBinary;
 const fixture = await mkdtemp(path.resolve('.runtime/settings fixture '));
 const home = path.join(fixture, 'data'), source = path.join(fixture, 'source');
 await mkdir(home); await mkdir(source);
@@ -71,7 +72,9 @@ test('GUI settings persist, control retrieval and preserve originals through ind
  await assert.rejects(api('settings_action',{action:'clear'}),/CONFIRMATION_REQUIRED/);
  assert.equal((await api('search_status')).threads,2);
  await api('settings_action',{action:'clear',confirmed:true});
- assert.equal((await api('search_status')).threads,0);assert.equal((await api('read_settings')).preferences.paused,true);
+ assert.equal((await api('search_status')).threads,0);
+ const policy=new DatabaseSync(path.join(home,'search.sqlite'),{readOnly:true});
+ assert.equal(policy.prepare("SELECT value FROM settings WHERE key='initial_embedding_complete'").get().value,'0');policy.close();assert.equal((await api('read_settings')).preferences.paused,true);
  assert.ok((await readdir(path.join(home,'backups'))).some(file=>file.startsWith('search-clear-')));
  await api('settings_action',{action:'rebuild',confirmed:true});await waitIdle();
  assert.equal((await api('search_status')).threads,2);
