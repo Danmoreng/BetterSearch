@@ -15,8 +15,6 @@ jobs:
         os: [windows-2022, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
-    env:
-      HF_HUB_CACHE: ${{ runner.temp }}/better-search-model-cache
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -31,6 +29,9 @@ jobs:
       - name: Validate release tag
         if: startsWith(github.ref, 'refs/tags/')
         run: node -e "const p=require('./package.json');if(process.env.GITHUB_REF_NAME!=='v'+p.version)throw Error('Tag does not match package version')"
+      - name: Configure shared model cache
+        shell: bash
+        run: printf 'HF_HUB_CACHE=%s/better-search-model-cache\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - run: npm ci
       - run: npm run setup -- --model
       - run: npm run build:native
