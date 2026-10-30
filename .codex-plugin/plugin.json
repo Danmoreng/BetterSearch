@@ -1,0 +1,25 @@
+{
+  "name": "better-search",
+  "version": "0.7.0",
+  "description": "Fast, private search across your local Codex chats.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "BetterSearch",
+    "shortDescription": "Private search for Codex chats",
+    "longDescription": "Search your local Codex chats from a focused conversation panel or directly through agent tools. Embeddings and the index stay on your computer.",
+    "developerName": "BetterSearch contributors",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read"
+    ],
+    "logo": "./assets/better-search-tab-light.png",
+    "composerIcon": "./assets/better-search-tab-light.png",
+    "brandColor": "#181818",
+    "brandColorDark": "#B8EE97",
+    "defaultPrompt": "Search my local Codex chats for a previous discussion.",
+    "logoDark": "./assets/better-search-tab-dark.png",
+    "composerIconDark": "./assets/better-search-tab-dark.png"
+  }
+}

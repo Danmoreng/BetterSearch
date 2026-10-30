@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "better-search": {
+      "type": "stdio",
+      "command": "cmd.exe",
+      "args": [
+        "/d",
+        "/s",
+        "/c",
+        ".\\dist\\runtime\\node.exe",
+        ".\\dist\\mcp.js"
+      ],
+      "cwd": "./"
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "version": 6,
+  "configurePresets": [
+    {
+      "name": "windows-rtx5080",
+      "displayName": "Ryzen 9955HX3D + RTX 5080 Laptop (SM 120)",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "toolset": "cuda=C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v13.3",
+      "binaryDir": "${sourceDir}/build/rtx5080",
+      "cacheVariables": {
+        "GGML_CUDA": "ON",
+        "CMAKE_CUDA_ARCHITECTURES": "120-real",
+        "GGML_NATIVE": "ON",
+        "GGML_CUDA_FA_ALL_QUANTS": "OFF",
+        "BETTER_SEARCH_VECTOR_ARCH": "AVX512",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
+        "BETTER_SEARCH_BUILD_PROFILE": "windows-rtx5080"
+      }
+    },
+    {
+      "name": "windows-cpu",
+      "displayName": "Portable Windows x64 CPU",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/cpu",
+      "cacheVariables": {
+        "GGML_CUDA": "OFF",
+        "GGML_NATIVE": "OFF",
+        "GGML_AVX": "OFF",
+        "GGML_AVX2": "OFF",
+        "GGML_AVX512": "OFF",
+        "GGML_FMA": "OFF",
+        "GGML_F16C": "OFF",
+        "GGML_BMI2": "OFF",
+        "GGML_SSE42": "OFF",
+        "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
+        "BETTER_SEARCH_BUILD_PROFILE": "windows-cpu",
+        "GGML_OPENMP": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "windows-rtx5080",
+      "configurePreset": "windows-rtx5080",
+      "configuration": "Release",
+      "jobs": 4
+    },
+    {
+      "name": "windows-cpu",
+      "configurePreset": "windows-cpu",
+      "configuration": "Release",
+      "jobs": 8
+    }
+  ]
+}

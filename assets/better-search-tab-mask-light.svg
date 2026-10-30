@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="53 29 70 70" role="img" aria-labelledby="title">
+  <title id="title">BetterSearch</title>
+  <!-- Connections continue beyond the cropped left edge. -->
+  <g fill="none" stroke="#000000" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M53 27 84 59"/>
+    <path d="M41 62 84 59"/>
+    <path d="M41 41 84 59"/>
+  </g>
+  <circle cx="84" cy="59" r="11" fill="#000000" fill-opacity="0.64"/>
+  <circle cx="84" cy="59" r="7" fill="#000000"/>
+  <circle cx="84" cy="59" r="24.5" fill="none" stroke="#000000" stroke-width="5.5"/>
+  <path d="M101.5 77.5 117 92" fill="none" stroke="#000000" stroke-width="8" stroke-linecap="round"/>
+</svg>

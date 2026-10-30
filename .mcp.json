@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "better-search": {
+      "command": "cmd.exe",
+      "args": [
+        "/d",
+        "/s",
+        "/c",
+        ".\\dist\\runtime\\node.exe",
+        ".\\dist\\mcp.js"
+      ],
+      "cwd": "./"
+    }
+  }
+}

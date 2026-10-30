@@ -1,0 +1,29 @@
+node_modules/
+dist/
+build/
+*.sqlite*
+.runtime/
+artifacts/
+
+# Local releases, backups, model weights and private runtime files
+*.zip
+*.gguf
+*.part
+*.log
+access-token
+service.pid
+service-start.lock
+model-setup.lock
+model-setup.json
+.vs/
+
+# Machine-local configuration, diagnostics and editor files
+.env
+.env.*
+!.env.example
+/config.json
+/preferences.json
+*.dmp
+*.bak
+*.tmp
+.idea/

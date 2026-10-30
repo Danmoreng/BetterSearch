@@ -1,0 +1,36 @@
+{
+  "name": "better-search",
+  "version": "0.7.0",
+  "private": true,
+  "type": "module",
+  "description": "Private local search for Codex chats, with a conversation panel and headless agent tools",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "build:native": "cmake --preset windows-cpu && cmake --build --preset windows-cpu -- /verbosity:minimal",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/launcher.js",
+    "stop": "node scripts/stop.mjs",
+    "status": "node scripts/status.mjs",
+    "mcp": "node dist/mcp.js",
+    "test": "node --test tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
+    "package": "node scripts/package.mjs",
+    "build:native:gpu": "cmake --preset windows-rtx5080 && cmake --build --preset windows-rtx5080 -- /verbosity:minimal",
+    "verify:release": "node scripts/verify-release.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/ext-apps": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.25.0",
+    "linkedom": "^0.18.14",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=26.13.0"
+  },
+  "license": "MIT"
+}

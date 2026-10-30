@@ -1,0 +1,10 @@
+import {readFile} from 'node:fs/promises';
+import path from 'node:path';
+import {dataHome} from './model.mjs';
+const base=`http://127.0.0.1:${Number(process.env.BETTER_SEARCH_PORT||39471)}`;
+const health=await fetch(base+'/health',{signal:AbortSignal.timeout(3000)}).then(r=>r.json());
+if(health.service!=='better-search')throw Error('The selected port is not a BetterSearch service');
+const token=await readFile(path.join(dataHome,'access-token'),'utf8');
+const response=await fetch(base+'/api',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({method:'shutdown'}),signal:AbortSignal.timeout(5000)});
+if(!response.ok)throw Error('Cannot stop the authenticated service');
+console.log('BetterSearch stopped. The index and model remain on disk.');
