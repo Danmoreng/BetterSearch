@@ -64,7 +64,8 @@ insert.run(
   "agentMessage",
   JSON.stringify({
     type: "agentMessage",
-    text: "Verwende PKCE für den Login. ".repeat(200) + " <script>alert('x')</script> Änderungsdiagnose 🌱 session_id src/ui.ts e\u0301",
+    // Keep the FTS snippet-centering prefix; native self-tests cover long UTF-8 chunks.
+    text: "Verwende PKCE für den Login. ".repeat(20) + " <script>alert('x')</script> Änderungsdiagnose 🌱 session_id src/ui.ts e\u0301",
   }),
   2,
 );
